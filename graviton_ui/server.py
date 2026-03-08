@@ -115,6 +115,7 @@ async def load_model(req: LoadRequest):
 
             state.load_stage = "Creating engine..."
             engine = GravitonEngine(config=config)
+            engine.progress_callback = lambda msg: setattr(state, "load_stage", msg)
 
             state.load_stage = "Downloading & loading weights..."
             engine.load_model()
