@@ -271,10 +271,14 @@ async def chat(req: ChatRequest):
             req.message,
         )
     if prompt is None:
+        logger.warning(
+            "Engine format_chat_prompt unavailable or failed; using fallback"
+        )
         model_id = (state.model_id or "").lower()
         prompt = _format_prompt(
             req.system_prompt, req.history, req.message, model_id=model_id
         )
+    logger.info("Chat prompt prefix: %s...", (prompt or "")[:120])
 
     engine.config.decoding.temperature = req.temperature
     engine.config.decoding.max_tokens = req.max_tokens
