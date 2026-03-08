@@ -124,21 +124,21 @@ async def load_model(req: LoadRequest):
             current, total = int(m.group(1)), int(m.group(2))
             state.load_current_layer = current
             state.load_total_layers = total
-            state.load_progress = 0.05 + (current / total) * 0.90
+            state.load_progress = 0.55 + (current / total) * 0.35
         elif dm:
             done_gb, total_gb = float(dm.group(1)), float(dm.group(2))
             if total_gb > 0:
-                state.load_progress = 0.01 + (done_gb / total_gb) * 0.04
+                state.load_progress = 0.02 + (done_gb / total_gb) * 0.48
         elif "Downloading" in msg:
-            state.load_progress = max(state.load_progress, 0.01)
+            state.load_progress = max(state.load_progress, 0.02)
         elif "Building model skeleton" in msg or "Building inference" in msg:
-            state.load_progress = 0.05
+            state.load_progress = 0.52
         elif "Loading embeddings" in msg:
-            state.load_progress = 0.06
+            state.load_progress = 0.54
         elif "Moving model to device" in msg:
-            state.load_progress = 0.70
+            state.load_progress = 0.92
         elif "Applying" in msg and "quantization" in msg:
-            state.load_progress = 0.80
+            state.load_progress = 0.95
         elif "Model ready" in msg:
             state.load_progress = 1.0
 
