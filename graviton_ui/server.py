@@ -128,7 +128,10 @@ async def load_model(req: LoadRequest):
         elif dm:
             done_gb, total_gb = float(dm.group(1)), float(dm.group(2))
             if total_gb > 0:
-                state.load_progress = 0.02 + (done_gb / total_gb) * 0.48
+                ratio = min(done_gb / total_gb, 1.0)
+                state.load_progress = 0.02 + ratio * 0.48
+        elif "Verifying" in msg:
+            state.load_progress = 0.50
         elif "Downloading" in msg:
             state.load_progress = max(state.load_progress, 0.02)
         elif "Building model skeleton" in msg or "Building inference" in msg:
