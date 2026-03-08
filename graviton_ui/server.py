@@ -262,12 +262,20 @@ async def chat(req: ChatRequest):
     if not state.loaded:
         raise HTTPException(400, "No model loaded")
 
-    model_id = (state.model_id or "").lower()
-    prompt = _format_prompt(
-        req.system_prompt, req.history, req.message, model_id=model_id
-    )
-
     engine = state.engine
+    prompt = None
+    if hasattr(engine, "format_chat_prompt"):
+        prompt = engine.format_chat_prompt(
+            req.system_prompt or "",
+            req.history,
+            req.message,
+        )
+    if prompt is None:
+        model_id = (state.model_id or "").lower()
+        prompt = _format_prompt(
+            req.system_prompt, req.history, req.message, model_id=model_id
+        )
+
     engine.config.decoding.temperature = req.temperature
     engine.config.decoding.max_tokens = req.max_tokens
 
