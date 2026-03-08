@@ -64,11 +64,18 @@ tailwind.config = {
   .dot-pulse   { animation: pulse-dot 1.2s ease-in-out infinite; }
   .spinner     { animation: spin .8s linear infinite; }
 
+  @keyframes indeterminate {
+    0%   { left: -30%; width: 30%; }
+    50%  { left: 50%;  width: 30%; }
+    100% { left: 100%; width: 30%; }
+  }
+
   .progress-bar-track {
     background: #111136;
     border-radius: 9999px;
     overflow: hidden;
     height: 12px;
+    position: relative;
   }
   .progress-bar-fill {
     height: 100%;
@@ -77,6 +84,14 @@ tailwind.config = {
     background-size: 200% 100%;
     animation: shimmer 2s linear infinite, progress-glow 2s ease-in-out infinite;
     transition: width 0.4s ease-out;
+  }
+  .progress-bar-indeterminate {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, transparent, rgba(139,92,246,0.5), transparent);
+    animation: indeterminate 1.5s ease-in-out infinite;
   }
 
   /* markdown inside messages */
@@ -340,6 +355,7 @@ tailwind.config = {
       <div class="w-full max-w-md mb-4">
         <div class="progress-bar-track">
           <div id="progressBarFill" class="progress-bar-fill" style="width: 0%"></div>
+          <div id="progressIndeterminate" class="progress-bar-indeterminate"></div>
         </div>
         <div class="flex justify-between mt-2">
           <span id="progressStage" class="text-xs text-g-muted truncate mr-4">Initializing...</span>
@@ -406,11 +422,12 @@ const genStatus     = $('#genStatus');
 const genTps        = $('#genTps');
 const loadingOverlay  = $('#loadingOverlay');
 const loadOverlayModel= $('#loadOverlayModel');
-const progressBarFill = $('#progressBarFill');
-const progressStage   = $('#progressStage');
-const progressPercent = $('#progressPercent');
-const progressLayers  = $('#progressLayers');
-const progressElapsed = $('#progressElapsed');
+const progressBarFill    = $('#progressBarFill');
+const progressIndeter    = $('#progressIndeterminate');
+const progressStage      = $('#progressStage');
+const progressPercent    = $('#progressPercent');
+const progressLayers     = $('#progressLayers');
+const progressElapsed    = $('#progressElapsed');
 const tempSlider    = $('#temperature');
 const tempVal       = $('#tempVal');
 const maxTokSlider  = $('#maxTokens');
@@ -516,6 +533,9 @@ function startPolling() {
         progressPercent.textContent = pct + '%';
         progressStage.textContent = stage;
 
+        const isDownloading = pct <= 5 && (stage.includes('Downloading') || stage.includes('loading weights'));
+        progressIndeter.style.display = isDownloading ? 'block' : 'none';
+
         if (data.load_total_layers > 0) {
           progressLayers.classList.remove('hidden');
           progressLayers.textContent = `Layer ${data.load_current_layer} / ${data.load_total_layers}`;
@@ -560,6 +580,7 @@ function setLoading() {
   $('#btnCancel').disabled = false;
   loadOverlayModel.textContent = $('#modelId').value.trim();
   progressBarFill.style.width = '0%';
+  progressIndeter.style.display = 'none';
   progressPercent.textContent = '0%';
   progressStage.textContent = 'Initializing...';
   progressLayers.classList.add('hidden');
@@ -569,10 +590,11 @@ function setLoading() {
 async function cancelLoading() {
   $('#btnCancel').disabled = true;
   btnLoad.disabled = true;
-  progressStage.textContent = 'Cancelling...';
   try {
     await fetch('/api/models/cancel', { method: 'POST' });
   } catch (_) {}
+  if (pollTimer) clearInterval(pollTimer);
+  setUnloaded();
 }
 
 function setModelLoaded(data) {
