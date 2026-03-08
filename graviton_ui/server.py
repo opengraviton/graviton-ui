@@ -262,7 +262,10 @@ async def chat(req: ChatRequest):
     if not state.loaded:
         raise HTTPException(400, "No model loaded")
 
-    prompt = _format_prompt(req.system_prompt, req.history, req.message)
+    model_id = (state.model_id or "").lower()
+    prompt = _format_prompt(
+        req.system_prompt, req.history, req.message, model_id=model_id
+    )
 
     engine = state.engine
     engine.config.decoding.temperature = req.temperature
@@ -302,10 +305,37 @@ async def chat(req: ChatRequest):
 
 # ── Helpers ─────────────────────────────────────────────────────────
 
-def _format_prompt(system: str, history: list, message: str) -> str:
-    """Format using ChatML template (TinyLlama-Chat, Mistral-Instruct, etc.)."""
-    parts = []
+def _format_prompt(
+    system: str, history: list, message: str, model_id: str = ""
+) -> str:
+    """Format prompt for the loaded model. Mistral uses [INST], others use ChatML."""
     sys_text = system or "You are a friendly and helpful assistant."
+
+    if "mistral" in model_id or "mixtral" in model_id:
+        # Mistral/Mixtral: <s>[INST] system\n\nuser [/INST] asst</s>[INST] user2 [/INST]
+        parts = ["<s>"]
+        first_user = True
+        for msg in history:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role == "user":
+                if first_user:
+                    parts.append(
+                        f"[INST] {sys_text}\n\n{content} [/INST]"
+                    )
+                    first_user = False
+                else:
+                    parts.append(f"[INST] {content} [/INST]")
+            else:
+                parts.append(f" {content.strip()}</s>")
+        if first_user:
+            parts.append(f"[INST] {sys_text}\n\n{message} [/INST]")
+        else:
+            parts.append(f"[INST] {message} [/INST]")
+        return "".join(parts)
+
+    # ChatML (TinyLlama, Llama, Qwen, etc.)
+    parts = []
     parts.append(f"<|system|>\n{sys_text}</s>")
     for msg in history:
         role = msg.get("role", "user")
