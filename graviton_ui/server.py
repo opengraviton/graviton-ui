@@ -13,6 +13,7 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 logger = logging.getLogger("graviton-ui")
@@ -20,6 +21,8 @@ logger = logging.getLogger("graviton-ui")
 app = FastAPI(title="Graviton UI", version="0.1.0")
 
 STATIC_DIR = Path(__file__).parent / "static"
+
+app.mount("/assets", StaticFiles(directory=str(STATIC_DIR / "assets")), name="assets")
 
 
 # ── Engine state ────────────────────────────────────────────────────
@@ -109,23 +112,29 @@ async def load_model(req: LoadRequest):
     state._load_start_time = time.time()
 
     _layer_re = re.compile(r"Loading layer (\d+)/(\d+)")
+    _dl_re = re.compile(r"(\d+\.?\d*)\s*/\s*(\d+\.?\d*)\s*GB")
 
     def _on_progress(msg: str):
         if state._cancel_requested:
             raise _CancelledError("Loading cancelled by user")
         state.load_stage = msg
         m = _layer_re.search(msg)
+        dm = _dl_re.search(msg)
         if m:
             current, total = int(m.group(1)), int(m.group(2))
             state.load_current_layer = current
             state.load_total_layers = total
             state.load_progress = 0.05 + (current / total) * 0.90
+        elif dm:
+            done_gb, total_gb = float(dm.group(1)), float(dm.group(2))
+            if total_gb > 0:
+                state.load_progress = 0.01 + (done_gb / total_gb) * 0.04
         elif "Downloading" in msg:
-            state.load_progress = 0.03
+            state.load_progress = max(state.load_progress, 0.01)
         elif "Building model skeleton" in msg or "Building inference" in msg:
-            state.load_progress = 0.04
-        elif "Loading embeddings" in msg:
             state.load_progress = 0.05
+        elif "Loading embeddings" in msg:
+            state.load_progress = 0.06
         elif "Moving model to device" in msg:
             state.load_progress = 0.70
         elif "Applying" in msg and "quantization" in msg:

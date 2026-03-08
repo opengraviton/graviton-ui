@@ -132,11 +132,8 @@ tailwind.config = {
   <!-- brand -->
   <div class="px-5 pt-5 pb-3">
     <div class="flex items-center gap-3 mb-1">
-      <div class="w-9 h-9 rounded-lg bg-g-accent/20 flex items-center justify-center">
-        <svg class="w-5 h-5 text-g-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-        </svg>
+      <div class="w-9 h-9 rounded-lg bg-g-accent/20 flex items-center justify-center overflow-hidden">
+        <img src="/assets/logo.svg" alt="Graviton" class="w-9 h-9">
       </div>
       <div>
         <h1 class="text-lg font-bold tracking-tight">Graviton</h1>
@@ -295,12 +292,8 @@ tailwind.config = {
   <div id="messages" class="flex-1 overflow-y-auto px-6 py-6 space-y-4">
     <!-- welcome -->
     <div id="welcome" class="flex flex-col items-center justify-center h-full text-center select-none">
-      <div class="w-16 h-16 rounded-2xl bg-g-accent/10 flex items-center justify-center mb-5">
-        <svg class="w-8 h-8 text-g-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-          <path d="M2 12h20"/>
-        </svg>
+      <div class="w-16 h-16 rounded-2xl bg-g-accent/10 flex items-center justify-center mb-5 overflow-hidden">
+        <img src="/assets/logo.svg" alt="Graviton" class="w-16 h-16">
       </div>
       <h2 class="text-xl font-bold mb-2">Welcome to Graviton</h2>
       <p class="text-g-muted text-sm max-w-md mb-6">
@@ -533,8 +526,9 @@ function startPolling() {
         progressPercent.textContent = pct + '%';
         progressStage.textContent = stage;
 
-        const isDownloading = pct <= 5 && (stage.includes('Downloading') || stage.includes('loading weights'));
-        progressIndeter.style.display = isDownloading ? 'block' : 'none';
+        const isDownloading = stage.includes('Downloading');
+        const hasGBProgress = /\d.*\/.*GB/.test(stage);
+        progressIndeter.style.display = (isDownloading && !hasGBProgress) ? 'block' : 'none';
 
         if (data.load_total_layers > 0) {
           progressLayers.classList.remove('hidden');

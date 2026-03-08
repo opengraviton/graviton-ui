@@ -1,8 +1,8 @@
 # Graviton UI
 
-Chat interface for the [Graviton](https://github.com/opengraviton/graviton) AI engine.
+Chat interface for the [Graviton](https://github.com/opengraviton/graviton) engine — the open-source project that breaks AI free from cloud monopolies.
 
-Pick a model, choose your settings, and start chatting — all from a dark-themed web UI running on your local machine. For large models (70B+), a progress bar shows real-time loading status as Graviton streams and compresses each layer.
+Pick a model up to 500B+ parameters, choose your compression settings, and start chatting — locally, on your own hardware. For large models, a progress bar shows real-time download and layer-by-layer loading progress.
 
 ## Features
 
