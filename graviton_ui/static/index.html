@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Graviton UI</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        g: {
+          bg:      '#07071a',
+          panel:   '#0c0c24',
+          card:    '#111136',
+          input:   '#161648',
+          border:  '#1e1e55',
+          accent:  '#8b5cf6',
+          aHover:  '#7c3aed',
+          aDim:    'rgba(139,92,246,.12)',
+          text:    '#e2e8f0',
+          muted:   '#94a3b8',
+          dim:     '#64748b',
+        }
+      }
+    }
+  }
+}
+</script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+  body { font-family: 'Inter', system-ui, sans-serif; }
+  code, pre { font-family: 'JetBrains Mono', monospace; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #1e1e55; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #8b5cf6; }
+
+  /* animations */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: .4; }
+    50%      { opacity: 1; }
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .msg-enter   { animation: fadeUp .3s ease-out; }
+  .dot-pulse   { animation: pulse-dot 1.2s ease-in-out infinite; }
+  .spinner     { animation: spin .8s linear infinite; }
+
+  /* markdown inside messages */
+  .msg-body p       { margin-bottom: .5em; }
+  .msg-body ul      { list-style: disc; padding-left: 1.25rem; margin-bottom: .5em; }
+  .msg-body ol      { list-style: decimal; padding-left: 1.25rem; margin-bottom: .5em; }
+  .msg-body pre     { background: #0a0a25; border-radius: .5rem; padding: .75rem 1rem; overflow-x: auto; margin: .5em 0; font-size: .85rem; }
+  .msg-body code    { background: #0a0a25; padding: .15em .35em; border-radius: .25rem; font-size: .88em; }
+  .msg-body pre code { background: none; padding: 0; }
+  .msg-body a       { color: #8b5cf6; text-decoration: underline; }
+  .msg-body h1,.msg-body h2,.msg-body h3 { font-weight: 600; margin: .75em 0 .25em; }
+  .msg-body blockquote { border-left: 3px solid #8b5cf6; padding-left: .75rem; color: #94a3b8; margin: .5em 0; }
+
+  /* textarea auto-resize */
+  #chatInput { resize: none; max-height: 160px; field-sizing: content; }
+
+  /* tooltip */
+  .tip { position: relative; }
+  .tip::after {
+    content: attr(data-tip);
+    position: absolute; bottom: 120%; left: 50%; transform: translateX(-50%);
+    background: #111136; color: #e2e8f0; padding: 4px 10px; border-radius: 6px;
+    font-size: .75rem; white-space: nowrap; pointer-events: none;
+    opacity: 0; transition: opacity .2s;
+  }
+  .tip:hover::after { opacity: 1; }
+
+  /* status dot */
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+</style>
+</head>
+
+<body class="bg-g-bg text-g-text h-screen flex overflow-hidden">
+
+<!-- ─── SIDEBAR ──────────────────────────────────────────────── -->
+<aside id="sidebar" class="w-80 flex-shrink-0 bg-g-panel border-r border-g-border flex flex-col h-full">
+
+  <!-- brand -->
+  <div class="px-5 pt-5 pb-3">
+    <div class="flex items-center gap-3 mb-1">
+      <div class="w-9 h-9 rounded-lg bg-g-accent/20 flex items-center justify-center">
+        <svg class="w-5 h-5 text-g-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-lg font-bold tracking-tight">Graviton</h1>
+        <p class="text-xs text-g-muted -mt-0.5">AI Inference Engine</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex-1 overflow-y-auto px-5 pb-4 space-y-5">
+
+    <!-- section: connection -->
+    <section>
+      <h2 class="text-[11px] font-semibold uppercase tracking-wider text-g-dim mb-2">Connection</h2>
+      <label class="block mb-3">
+        <span class="text-xs text-g-muted mb-1 block">HuggingFace Token</span>
+        <input id="hfToken" type="password" placeholder="hf_..."
+          class="w-full bg-g-input border border-g-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-g-accent/60 transition placeholder:text-g-dim">
+      </label>
+    </section>
+
+    <!-- section: model -->
+    <section>
+      <h2 class="text-[11px] font-semibold uppercase tracking-wider text-g-dim mb-2">Model</h2>
+      <label class="block mb-3">
+        <span class="text-xs text-g-muted mb-1 block">Model ID</span>
+        <input id="modelId" type="text" placeholder="TinyLlama/TinyLlama-1.1B-Chat-v1.0" list="modelSuggestions"
+          class="w-full bg-g-input border border-g-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-g-accent/60 transition placeholder:text-g-dim">
+        <datalist id="modelSuggestions">
+          <option value="TinyLlama/TinyLlama-1.1B-Chat-v1.0">
+          <option value="microsoft/phi-2">
+          <option value="Qwen/Qwen2-0.5B">
+          <option value="meta-llama/Llama-2-7b-chat-hf">
+          <option value="mistralai/Mistral-7B-Instruct-v0.2">
+        </datalist>
+      </label>
+    </section>
+
+    <!-- section: quantization -->
+    <section>
+      <h2 class="text-[11px] font-semibold uppercase tracking-wider text-g-dim mb-2">Quantization</h2>
+      <div class="grid grid-cols-2 gap-2 mb-3">
+        <label class="block">
+          <span class="text-xs text-g-muted mb-1 block">Bits</span>
+          <select id="qBits"
+            class="w-full bg-g-input border border-g-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-g-accent/60">
+            <option value="8">INT8</option>
+            <option value="4" selected>INT4</option>
+            <option value="2">INT2</option>
+            <option value="1.58">Ternary</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="text-xs text-g-muted mb-1 block">Mode</span>
+          <select id="qMode"
+            class="w-full bg-g-input border border-g-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-g-accent/60">
+            <option value="mixed">Mixed Precision</option>
+            <option value="uniform">Uniform</option>
+            <option value="none">FP16 (None)</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <!-- section: generation -->
+    <section>
+      <h2 class="text-[11px] font-semibold uppercase tracking-wider text-g-dim mb-2">Generation</h2>
+      <label class="block mb-3">
+        <div class="flex justify-between mb-1">
+          <span class="text-xs text-g-muted">Temperature</span>
+          <span id="tempVal" class="text-xs text-g-accent font-mono">0.7</span>
+        </div>
+        <input id="temperature" type="range" min="0" max="2" step="0.05" value="0.7"
+          class="w-full h-1.5 bg-g-border rounded-full appearance-none cursor-pointer accent-g-accent">
+      </label>
+      <label class="block mb-3">
+        <div class="flex justify-between mb-1">
+          <span class="text-xs text-g-muted">Max Tokens</span>
+          <span id="maxTokVal" class="text-xs text-g-accent font-mono">256</span>
+        </div>
+        <input id="maxTokens" type="range" min="32" max="1024" step="32" value="256"
+          class="w-full h-1.5 bg-g-border rounded-full appearance-none cursor-pointer accent-g-accent">
+      </label>
+      <label class="flex items-center gap-2.5 mb-2 cursor-pointer select-none">
+        <input id="specToggle" type="checkbox"
+          class="w-4 h-4 rounded bg-g-input border-g-border accent-g-accent cursor-pointer">
+        <span class="text-sm">Speculative Decoding</span>
+      </label>
+      <div id="specOptions" class="ml-6 hidden">
+        <label class="block mb-2">
+          <span class="text-xs text-g-muted mb-1 block">Draft tokens (gamma)</span>
+          <input id="specTokens" type="number" value="4" min="1" max="16"
+            class="w-20 bg-g-input border border-g-border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-g-accent/60">
+        </label>
+      </div>
+    </section>
+
+    <!-- section: system prompt -->
+    <section>
+      <h2 class="text-[11px] font-semibold uppercase tracking-wider text-g-dim mb-2">System Prompt</h2>
+      <textarea id="systemPrompt" rows="2" placeholder="You are a helpful assistant."
+        class="w-full bg-g-input border border-g-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-g-accent/60 transition placeholder:text-g-dim resize-none"></textarea>
+    </section>
+
+  </div>
+
+  <!-- actions -->
+  <div class="px-5 py-4 border-t border-g-border space-y-3">
+    <button id="btnLoad" onclick="handleLoad()"
+      class="w-full bg-g-accent hover:bg-g-aHover text-white font-semibold py-2.5 rounded-lg transition flex items-center justify-center gap-2 text-sm">
+      <span id="btnLoadText">Load Model</span>
+      <svg id="btnLoadSpinner" class="w-4 h-4 spinner hidden" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"/>
+      </svg>
+    </button>
+
+    <!-- status -->
+    <div id="statusBar" class="flex items-center gap-2 text-xs text-g-muted">
+      <span id="statusDot" class="status-dot bg-g-dim"></span>
+      <span id="statusText">No model loaded</span>
+    </div>
+    <div id="loadError" class="text-xs text-red-400 hidden"></div>
+  </div>
+
+</aside>
+
+<!-- ─── MAIN CHAT AREA ───────────────────────────────────────── -->
+<main class="flex-1 flex flex-col min-w-0">
+
+  <!-- header -->
+  <header class="h-14 border-b border-g-border flex items-center justify-between px-6 flex-shrink-0 bg-g-panel/60 backdrop-blur-sm">
+    <div class="flex items-center gap-3">
+      <button onclick="toggleSidebar()" class="lg:hidden p-1.5 rounded-lg hover:bg-g-card transition">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+      </button>
+      <h2 id="headerModel" class="text-sm font-medium text-g-muted truncate">No model loaded</h2>
+    </div>
+    <div class="flex items-center gap-3">
+      <span id="headerQuant" class="text-xs bg-g-card px-2.5 py-1 rounded-md text-g-muted hidden"></span>
+      <button onclick="clearChat()" class="tip p-1.5 rounded-lg hover:bg-g-card transition text-g-muted hover:text-g-text" data-tip="Clear chat">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- messages -->
+  <div id="messages" class="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+    <!-- welcome -->
+    <div id="welcome" class="flex flex-col items-center justify-center h-full text-center select-none">
+      <div class="w-16 h-16 rounded-2xl bg-g-accent/10 flex items-center justify-center mb-5">
+        <svg class="w-8 h-8 text-g-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          <path d="M2 12h20"/>
+        </svg>
+      </div>
+      <h2 class="text-xl font-bold mb-2">Welcome to Graviton</h2>
+      <p class="text-g-muted text-sm max-w-md mb-6">
+        Ultra-efficient AI inference on your hardware.<br>
+        Configure a model in the sidebar and click <strong class="text-g-accent">Load Model</strong> to get started.
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-lg w-full">
+        <button onclick="setQuickModel('TinyLlama/TinyLlama-1.1B-Chat-v1.0')"
+          class="bg-g-card hover:bg-g-input border border-g-border rounded-xl px-4 py-3 text-left transition group">
+          <p class="text-sm font-medium group-hover:text-g-accent transition">TinyLlama 1.1B</p>
+          <p class="text-xs text-g-dim mt-0.5">Fast &amp; lightweight</p>
+        </button>
+        <button onclick="setQuickModel('microsoft/phi-2')"
+          class="bg-g-card hover:bg-g-input border border-g-border rounded-xl px-4 py-3 text-left transition group">
+          <p class="text-sm font-medium group-hover:text-g-accent transition">Phi-2</p>
+          <p class="text-xs text-g-dim mt-0.5">Microsoft 2.7B</p>
+        </button>
+        <button onclick="setQuickModel('Qwen/Qwen2-0.5B')"
+          class="bg-g-card hover:bg-g-input border border-g-border rounded-xl px-4 py-3 text-left transition group">
+          <p class="text-sm font-medium group-hover:text-g-accent transition">Qwen2 0.5B</p>
+          <p class="text-xs text-g-dim mt-0.5">Ultra compact</p>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- token counter (during generation) -->
+  <div id="genStatus" class="px-6 py-1.5 text-xs text-g-muted flex items-center gap-2 hidden">
+    <span class="status-dot bg-g-accent dot-pulse"></span>
+    <span id="genTps">-</span>
+  </div>
+
+  <!-- input -->
+  <div class="px-6 pb-5 pt-2 flex-shrink-0">
+    <div class="relative flex items-end bg-g-card border border-g-border rounded-2xl focus-within:border-g-accent/40 transition">
+      <textarea id="chatInput" rows="1" placeholder="Type a message..."
+        class="flex-1 bg-transparent text-sm px-5 py-3.5 focus:outline-none placeholder:text-g-dim min-h-[48px]"
+        onkeydown="handleKey(event)" disabled></textarea>
+      <button id="btnSend" onclick="sendMessage()" disabled
+        class="m-2 p-2 rounded-xl bg-g-accent hover:bg-g-aHover disabled:opacity-30 disabled:cursor-not-allowed text-white transition flex-shrink-0">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </button>
+    </div>
+    <p class="text-center text-[11px] text-g-dim mt-2">
+      Powered by <strong>Graviton</strong> — QuantizedLinear &middot; Speculative Decoding &middot; Dynamic Sparsity
+    </p>
+  </div>
+</main>
+
+<!-- ─── JAVASCRIPT ───────────────────────────────────────────── -->
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+
+// DOM refs
+const messagesEl    = $('#messages');
+const welcomeEl     = $('#welcome');
+const chatInput     = $('#chatInput');
+const btnSend       = $('#btnSend');
+const btnLoad       = $('#btnLoad');
+const btnLoadText   = $('#btnLoadText');
+const btnLoadSpinner= $('#btnLoadSpinner');
+const statusDot     = $('#statusDot');
+const statusText    = $('#statusText');
+const loadError     = $('#loadError');
+const headerModel   = $('#headerModel');
+const headerQuant   = $('#headerQuant');
+const genStatus     = $('#genStatus');
+const genTps        = $('#genTps');
+const tempSlider    = $('#temperature');
+const tempVal       = $('#tempVal');
+const maxTokSlider  = $('#maxTokens');
+const maxTokVal     = $('#maxTokVal');
+const specToggle    = $('#specToggle');
+const specOptions   = $('#specOptions');
+
+// State
+let isLoaded = false;
+let isGenerating = false;
+let chatHistory = [];
+let pollTimer = null;
+
+// Configure marked for safe rendering
+marked.setOptions({ breaks: true, gfm: true });
+
+// ── Slider bindings ────────────────────────────────────────────
+tempSlider.oninput  = () => { tempVal.textContent = parseFloat(tempSlider.value).toFixed(2); };
+maxTokSlider.oninput = () => { maxTokVal.textContent = maxTokSlider.value; };
+specToggle.onchange  = () => { specOptions.classList.toggle('hidden', !specToggle.checked); };
+
+// ── Quick model pick ───────────────────────────────────────────
+function setQuickModel(id) {
+  $('#modelId').value = id;
+  $('#modelId').focus();
+}
+
+// ── Sidebar toggle (mobile) ───────────────────────────────────
+function toggleSidebar() {
+  const sb = $('#sidebar');
+  sb.classList.toggle('-translate-x-full');
+}
+
+// ── Load Model ─────────────────────────────────────────────────
+async function handleLoad() {
+  if (isLoaded) {
+    await fetch('/api/models/unload', { method: 'POST' });
+    setUnloaded();
+    return;
+  }
+
+  const modelId = $('#modelId').value.trim();
+  if (!modelId) { $('#modelId').focus(); return; }
+
+  const qMode = $('#qMode').value;
+  const body = {
+    model_id:    modelId,
+    hf_token:    $('#hfToken').value.trim(),
+    bits:        parseFloat($('#qBits').value),
+    no_quantize: qMode === 'none',
+    no_mixed:    qMode === 'uniform',
+    speculative: specToggle.checked,
+    spec_tokens: parseInt($('#specTokens').value) || 4,
+  };
+
+  setLoading();
+
+  try {
+    const res = await fetch('/api/models/load', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      showError(err.detail || 'Request failed');
+      setUnloaded();
+      return;
+    }
+    startPolling();
+  } catch (e) {
+    showError('Could not reach server');
+    setUnloaded();
+  }
+}
+
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    try {
+      const res = await fetch('/api/models/status');
+      const data = await res.json();
+
+      if (data.error) {
+        showError(data.error);
+        setUnloaded();
+        clearInterval(pollTimer);
+        return;
+      }
+
+      if (data.loading) {
+        statusText.textContent = data.load_stage || 'Loading...';
+        return;
+      }
+
+      if (data.loaded) {
+        setModelLoaded(data);
+        clearInterval(pollTimer);
+      }
+    } catch (_) {}
+  }, 800);
+}
+
+function setLoading() {
+  loadError.classList.add('hidden');
+  btnLoad.disabled = true;
+  btnLoadText.textContent = 'Loading...';
+  btnLoadSpinner.classList.remove('hidden');
+  statusDot.className = 'status-dot bg-yellow-400 dot-pulse';
+  statusText.textContent = 'Initializing...';
+}
+
+function setModelLoaded(data) {
+  isLoaded = true;
+  btnLoad.disabled = false;
+  btnLoadText.textContent = 'Unload Model';
+  btnLoadSpinner.classList.add('hidden');
+  statusDot.className = 'status-dot bg-emerald-400';
+  statusText.textContent = shortName(data.model_id);
+  headerModel.textContent = shortName(data.model_id);
+  if (data.config?.quantization) {
+    headerQuant.textContent = data.config.quantization;
+    headerQuant.classList.remove('hidden');
+  }
+  chatInput.disabled = false;
+  btnSend.disabled = false;
+  chatInput.focus();
+}
+
+function setUnloaded() {
+  isLoaded = false;
+  btnLoad.disabled = false;
+  btnLoadText.textContent = 'Load Model';
+  btnLoadSpinner.classList.add('hidden');
+  statusDot.className = 'status-dot bg-g-dim';
+  statusText.textContent = 'No model loaded';
+  headerModel.textContent = 'No model loaded';
+  headerQuant.classList.add('hidden');
+  chatInput.disabled = true;
+  btnSend.disabled = true;
+}
+
+function showError(msg) {
+  loadError.textContent = msg;
+  loadError.classList.remove('hidden');
+}
+
+function shortName(id) {
+  if (!id) return '';
+  const parts = id.split('/');
+  return parts.length > 1 ? parts[parts.length - 1] : id;
+}
+
+// ── Chat ───────────────────────────────────────────────────────
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+async function sendMessage() {
+  const text = chatInput.value.trim();
+  if (!text || !isLoaded || isGenerating) return;
+
+  chatInput.value = '';
+  welcomeEl.classList.add('hidden');
+
+  appendMessage('user', text);
+  chatHistory.push({ role: 'user', content: text });
+
+  const assistantEl = appendMessage('assistant', '');
+  const bodyEl = assistantEl.querySelector('.msg-body');
+
+  isGenerating = true;
+  btnSend.disabled = true;
+  genStatus.classList.remove('hidden');
+  genTps.textContent = 'Starting...';
+
+  let fullText = '';
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message:       text,
+        temperature:   parseFloat(tempSlider.value),
+        max_tokens:    parseInt(maxTokSlider.value),
+        system_prompt: $('#systemPrompt').value.trim(),
+        history:       chatHistory.slice(0, -1),
+      }),
+    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const data = JSON.parse(line.slice(6));
+          if (data.error) {
+            bodyEl.innerHTML = `<span class="text-red-400">${data.error}</span>`;
+            break;
+          }
+          if (data.done) {
+            genTps.textContent = `${data.total_tokens} tokens · ${data.elapsed}s · ${data.tps} tok/s`;
+            break;
+          }
+          fullText += data.token;
+          bodyEl.innerHTML = marked.parse(fullText);
+          if (data.tps) genTps.textContent = `${data.tps} tok/s`;
+          scrollBottom();
+        } catch (_) {}
+      }
+    }
+  } catch (e) {
+    bodyEl.innerHTML = `<span class="text-red-400">Connection error</span>`;
+  }
+
+  chatHistory.push({ role: 'assistant', content: fullText });
+  isGenerating = false;
+  btnSend.disabled = false;
+  setTimeout(() => { genStatus.classList.add('hidden'); }, 4000);
+  chatInput.focus();
+}
+
+function appendMessage(role, content) {
+  const isUser = role === 'user';
+  const wrapper = document.createElement('div');
+  wrapper.className = `msg-enter flex ${isUser ? 'justify-end' : 'justify-start'}`;
+
+  const bubble = document.createElement('div');
+  bubble.className = isUser
+    ? 'max-w-[75%] bg-g-accent/15 border border-g-accent/20 rounded-2xl rounded-br-md px-4 py-3 text-sm'
+    : 'max-w-[75%] bg-g-card border border-g-border rounded-2xl rounded-bl-md px-4 py-3 text-sm';
+
+  const label = document.createElement('div');
+  label.className = `text-[11px] font-semibold mb-1 ${isUser ? 'text-g-accent' : 'text-g-muted'}`;
+  label.textContent = isUser ? 'You' : 'Graviton';
+
+  const body = document.createElement('div');
+  body.className = 'msg-body leading-relaxed';
+  if (content) body.innerHTML = isUser ? escapeHtml(content) : marked.parse(content);
+
+  bubble.appendChild(label);
+  bubble.appendChild(body);
+  wrapper.appendChild(bubble);
+  messagesEl.appendChild(wrapper);
+  scrollBottom();
+  return wrapper;
+}
+
+function clearChat() {
+  chatHistory = [];
+  messagesEl.innerHTML = '';
+  messagesEl.appendChild(welcomeEl);
+  welcomeEl.classList.remove('hidden');
+}
+
+function scrollBottom() {
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML.replace(/\n/g, '<br>');
+}
+
+// ── Init ───────────────────────────────────────────────────────
+(async function init() {
+  try {
+    const res = await fetch('/api/models/status');
+    const data = await res.json();
+    if (data.loaded) setModelLoaded(data);
+  } catch (_) {}
+})();
+</script>
+</body>
+</html>
