@@ -130,7 +130,9 @@ async def load_model(req: LoadRequest):
             if total_gb > 0:
                 ratio = min(done_gb / total_gb, 1.0)
                 state.load_progress = 0.02 + ratio * 0.48
-        elif "Verifying" in msg:
+        elif "Preparing" in msg:
+            state.load_progress = 0.50
+        elif "Found" in msg and "cache" in msg:
             state.load_progress = 0.50
         elif "Downloading" in msg:
             state.load_progress = max(state.load_progress, 0.02)
