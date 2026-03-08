@@ -208,12 +208,13 @@ async def chat(req: ChatRequest):
 # ── Helpers ─────────────────────────────────────────────────────────
 
 def _format_prompt(system: str, history: list, message: str) -> str:
+    """Format using ChatML template (TinyLlama-Chat, Mistral-Instruct, etc.)."""
     parts = []
-    if system:
-        parts.append(f"System: {system}\n")
+    sys_text = system or "You are a friendly and helpful assistant."
+    parts.append(f"<|system|>\n{sys_text}</s>")
     for msg in history:
-        role = msg.get("role", "user").capitalize()
-        parts.append(f"{role}: {msg['content']}")
-    parts.append(f"User: {message}")
-    parts.append("Assistant:")
+        role = msg.get("role", "user")
+        parts.append(f"<|{role}|>\n{msg['content']}</s>")
+    parts.append(f"<|user|>\n{message}</s>")
+    parts.append("<|assistant|>\n")
     return "\n".join(parts)
