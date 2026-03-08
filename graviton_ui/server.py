@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import threading
 import time
 from pathlib import Path
@@ -23,15 +24,24 @@ STATIC_DIR = Path(__file__).parent / "static"
 
 # ── Engine state ────────────────────────────────────────────────────
 
+class _CancelledError(Exception):
+    pass
+
+
 class _EngineState:
     def __init__(self):
         self.engine = None
         self.model_id: Optional[str] = None
         self.loading: bool = False
         self.load_stage: str = ""
+        self.load_progress: float = 0.0
+        self.load_current_layer: int = 0
+        self.load_total_layers: int = 0
         self.error: Optional[str] = None
         self.gen_lock = threading.Lock()
         self.config_summary: dict = {}
+        self._load_start_time: float = 0.0
+        self._cancel_requested: bool = False
 
     @property
     def loaded(self) -> bool:
@@ -42,8 +52,13 @@ class _EngineState:
         self.model_id = None
         self.loading = False
         self.load_stage = ""
+        self.load_progress = 0.0
+        self.load_current_layer = 0
+        self.load_total_layers = 0
         self.error = None
         self.config_summary = {}
+        self._load_start_time = 0.0
+        self._cancel_requested = False
 
 
 state = _EngineState()
@@ -86,7 +101,37 @@ async def load_model(req: LoadRequest):
 
     state.loading = True
     state.error = None
+    state._cancel_requested = False
     state.load_stage = "Initializing..."
+    state.load_progress = 0.0
+    state.load_current_layer = 0
+    state.load_total_layers = 0
+    state._load_start_time = time.time()
+
+    _layer_re = re.compile(r"Loading layer (\d+)/(\d+)")
+
+    def _on_progress(msg: str):
+        if state._cancel_requested:
+            raise _CancelledError("Loading cancelled by user")
+        state.load_stage = msg
+        m = _layer_re.search(msg)
+        if m:
+            current, total = int(m.group(1)), int(m.group(2))
+            state.load_current_layer = current
+            state.load_total_layers = total
+            state.load_progress = 0.05 + (current / total) * 0.90
+        elif "Downloading" in msg:
+            state.load_progress = 0.03
+        elif "Building model skeleton" in msg or "Building inference" in msg:
+            state.load_progress = 0.04
+        elif "Loading embeddings" in msg:
+            state.load_progress = 0.05
+        elif "Moving model to device" in msg:
+            state.load_progress = 0.70
+        elif "Applying" in msg and "quantization" in msg:
+            state.load_progress = 0.80
+        elif "Model ready" in msg:
+            state.load_progress = 1.0
 
     def _load():
         try:
@@ -98,6 +143,7 @@ async def load_model(req: LoadRequest):
                 os.environ["HUGGING_FACE_HUB_TOKEN"] = req.hf_token
 
             state.load_stage = "Building config..."
+            state.load_progress = 0.01
             config = GravitonConfig(
                 model_path=req.model_id,
                 quant_bits=req.bits,
@@ -114,10 +160,12 @@ async def load_model(req: LoadRequest):
                 config.decoding.num_speculative_tokens = req.spec_tokens
 
             state.load_stage = "Creating engine..."
+            state.load_progress = 0.02
             engine = GravitonEngine(config=config)
-            engine.progress_callback = lambda msg: setattr(state, "load_stage", msg)
+            engine.progress_callback = _on_progress
 
             state.load_stage = "Downloading & loading weights..."
+            state.load_progress = 0.03
             engine.load_model()
 
             if req.no_quantize:
@@ -134,9 +182,12 @@ async def load_model(req: LoadRequest):
                 "speculative": req.speculative,
                 "bits": req.bits,
             }
+        except _CancelledError:
+            logger.info("Model loading cancelled by user")
         except Exception as exc:
-            logger.exception("Model load failed")
-            state.error = str(exc)
+            if not state._cancel_requested:
+                logger.exception("Model load failed")
+                state.error = str(exc)
         finally:
             state.loading = False
             state.load_stage = ""
@@ -147,9 +198,16 @@ async def load_model(req: LoadRequest):
 
 @app.get("/api/models/status")
 async def model_status():
+    elapsed = 0.0
+    if state.loading and state._load_start_time:
+        elapsed = time.time() - state._load_start_time
     return {
         "loading": state.loading,
         "load_stage": state.load_stage,
+        "load_progress": round(state.load_progress, 4),
+        "load_current_layer": state.load_current_layer,
+        "load_total_layers": state.load_total_layers,
+        "load_elapsed": round(elapsed, 1),
         "loaded": state.loaded,
         "model_id": state.model_id,
         "error": state.error,
@@ -157,8 +215,19 @@ async def model_status():
     }
 
 
+@app.post("/api/models/cancel")
+async def cancel_loading():
+    if not state.loading:
+        return {"status": "not_loading"}
+    state._cancel_requested = True
+    state.load_stage = "Cancelling..."
+    return {"status": "cancelling"}
+
+
 @app.post("/api/models/unload")
 async def unload_model():
+    if state.loading:
+        state._cancel_requested = True
     state.reset()
     return {"status": "ok"}
 

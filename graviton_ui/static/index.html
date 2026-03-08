@@ -51,10 +51,33 @@ tailwind.config = {
     50%      { opacity: 1; }
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes progress-glow {
+    0%, 100% { box-shadow: 0 0 8px rgba(139,92,246,.4); }
+    50%      { box-shadow: 0 0 20px rgba(139,92,246,.7); }
+  }
+  @keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
 
   .msg-enter   { animation: fadeUp .3s ease-out; }
   .dot-pulse   { animation: pulse-dot 1.2s ease-in-out infinite; }
   .spinner     { animation: spin .8s linear infinite; }
+
+  .progress-bar-track {
+    background: #111136;
+    border-radius: 9999px;
+    overflow: hidden;
+    height: 12px;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, #7c3aed, #8b5cf6, #a78bfa, #8b5cf6, #7c3aed);
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite, progress-glow 2s ease-in-out infinite;
+    transition: width 0.4s ease-out;
+  }
 
   /* markdown inside messages */
   .msg-body p       { margin-bottom: .5em; }
@@ -124,14 +147,19 @@ tailwind.config = {
       <h2 class="text-[11px] font-semibold uppercase tracking-wider text-g-dim mb-2">Model</h2>
       <label class="block mb-3">
         <span class="text-xs text-g-muted mb-1 block">Model ID</span>
-        <input id="modelId" type="text" placeholder="TinyLlama/TinyLlama-1.1B-Chat-v1.0" list="modelSuggestions"
+        <input id="modelId" type="text" placeholder="Qwen/Qwen2.5-72B-Instruct" list="modelSuggestions"
           class="w-full bg-g-input border border-g-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-g-accent/60 transition placeholder:text-g-dim">
         <datalist id="modelSuggestions">
-          <option value="TinyLlama/TinyLlama-1.1B-Chat-v1.0">
+          <option value="Qwen/Qwen2.5-72B-Instruct">
+          <option value="meta-llama/Llama-3.1-70B-Instruct">
+          <option value="mistralai/Mixtral-8x22B-Instruct-v0.1">
+          <option value="Qwen/Qwen2.5-32B-Instruct">
+          <option value="meta-llama/Llama-3.1-8B-Instruct">
+          <option value="mistralai/Mistral-7B-Instruct-v0.3">
           <option value="microsoft/phi-2">
-          <option value="Qwen/Qwen2-0.5B">
-          <option value="meta-llama/Llama-2-7b-chat-hf">
-          <option value="mistralai/Mistral-7B-Instruct-v0.2">
+          <option value="Qwen/Qwen2.5-7B-Instruct">
+          <option value="Qwen/Qwen2.5-3B-Instruct">
+          <option value="TinyLlama/TinyLlama-1.1B-Chat-v1.0">
         </datalist>
       </label>
     </section>
@@ -206,7 +234,7 @@ tailwind.config = {
 
   <!-- actions -->
   <div class="px-5 py-4 border-t border-g-border space-y-3">
-    <button id="btnLoad" onclick="handleLoad()"
+    <button id="btnLoad"
       class="w-full bg-g-accent hover:bg-g-aHover text-white font-semibold py-2.5 rounded-lg transition flex items-center justify-center gap-2 text-sm">
       <span id="btnLoadText">Load Model</span>
       <svg id="btnLoadSpinner" class="w-4 h-4 spinner hidden" fill="none" viewBox="0 0 24 24">
@@ -264,23 +292,70 @@ tailwind.config = {
         Ultra-efficient AI inference on your hardware.<br>
         Configure a model in the sidebar and click <strong class="text-g-accent">Load Model</strong> to get started.
       </p>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-lg w-full">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-2xl w-full">
+        <button onclick="setQuickModel('Qwen/Qwen2.5-72B-Instruct')"
+          class="bg-g-card hover:bg-g-input border border-g-border rounded-xl px-4 py-3 text-left transition group">
+          <p class="text-sm font-medium group-hover:text-g-accent transition">Qwen2.5 72B</p>
+          <p class="text-xs text-g-dim mt-0.5">Flagship — needs 64 GB</p>
+        </button>
+        <button onclick="setQuickModel('meta-llama/Llama-3.1-70B-Instruct')"
+          class="bg-g-card hover:bg-g-input border border-g-border rounded-xl px-4 py-3 text-left transition group">
+          <p class="text-sm font-medium group-hover:text-g-accent transition">Llama 3.1 70B</p>
+          <p class="text-xs text-g-dim mt-0.5">Meta's best — needs 64 GB</p>
+        </button>
+        <button onclick="setQuickModel('Qwen/Qwen2.5-32B-Instruct')"
+          class="bg-g-card hover:bg-g-input border border-g-border rounded-xl px-4 py-3 text-left transition group">
+          <p class="text-sm font-medium group-hover:text-g-accent transition">Qwen2.5 32B</p>
+          <p class="text-xs text-g-dim mt-0.5">Strong — needs 32 GB</p>
+        </button>
+        <button onclick="setQuickModel('meta-llama/Llama-3.1-8B-Instruct')"
+          class="bg-g-card hover:bg-g-input border border-g-border rounded-xl px-4 py-3 text-left transition group">
+          <p class="text-sm font-medium group-hover:text-g-accent transition">Llama 3.1 8B</p>
+          <p class="text-xs text-g-dim mt-0.5">Great balance — 16 GB</p>
+        </button>
+        <button onclick="setQuickModel('mistralai/Mistral-7B-Instruct-v0.3')"
+          class="bg-g-card hover:bg-g-input border border-g-border rounded-xl px-4 py-3 text-left transition group">
+          <p class="text-sm font-medium group-hover:text-g-accent transition">Mistral 7B</p>
+          <p class="text-xs text-g-dim mt-0.5">Fast &amp; capable — 16 GB</p>
+        </button>
         <button onclick="setQuickModel('TinyLlama/TinyLlama-1.1B-Chat-v1.0')"
           class="bg-g-card hover:bg-g-input border border-g-border rounded-xl px-4 py-3 text-left transition group">
           <p class="text-sm font-medium group-hover:text-g-accent transition">TinyLlama 1.1B</p>
-          <p class="text-xs text-g-dim mt-0.5">Fast &amp; lightweight</p>
-        </button>
-        <button onclick="setQuickModel('microsoft/phi-2')"
-          class="bg-g-card hover:bg-g-input border border-g-border rounded-xl px-4 py-3 text-left transition group">
-          <p class="text-sm font-medium group-hover:text-g-accent transition">Phi-2</p>
-          <p class="text-xs text-g-dim mt-0.5">Microsoft 2.7B</p>
-        </button>
-        <button onclick="setQuickModel('Qwen/Qwen2-0.5B')"
-          class="bg-g-card hover:bg-g-input border border-g-border rounded-xl px-4 py-3 text-left transition group">
-          <p class="text-sm font-medium group-hover:text-g-accent transition">Qwen2 0.5B</p>
-          <p class="text-xs text-g-dim mt-0.5">Ultra compact</p>
+          <p class="text-xs text-g-dim mt-0.5">Ultra fast — 8 GB</p>
         </button>
       </div>
+    </div>
+
+    <!-- loading overlay (during model load) -->
+    <div id="loadingOverlay" class="hidden flex flex-col items-center justify-center h-full text-center select-none px-6">
+      <div class="w-16 h-16 rounded-2xl bg-g-accent/10 flex items-center justify-center mb-6">
+        <svg class="w-8 h-8 text-g-accent spinner" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"/>
+        </svg>
+      </div>
+      <h2 class="text-xl font-bold mb-1">Loading Model</h2>
+      <p id="loadOverlayModel" class="text-g-muted text-sm mb-6"></p>
+
+      <div class="w-full max-w-md mb-4">
+        <div class="progress-bar-track">
+          <div id="progressBarFill" class="progress-bar-fill" style="width: 0%"></div>
+        </div>
+        <div class="flex justify-between mt-2">
+          <span id="progressStage" class="text-xs text-g-muted truncate mr-4">Initializing...</span>
+          <span id="progressPercent" class="text-xs text-g-accent font-mono font-semibold flex-shrink-0">0%</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-4 text-xs text-g-dim mb-5">
+        <span id="progressLayers" class="hidden"></span>
+        <span id="progressElapsed"></span>
+      </div>
+
+      <button id="btnCancel" onclick="cancelLoading()"
+        class="px-5 py-2 rounded-lg border border-red-500/40 text-red-400 text-sm hover:bg-red-500/10 transition">
+        Cancel
+      </button>
     </div>
   </div>
 
@@ -329,6 +404,13 @@ const headerModel   = $('#headerModel');
 const headerQuant   = $('#headerQuant');
 const genStatus     = $('#genStatus');
 const genTps        = $('#genTps');
+const loadingOverlay  = $('#loadingOverlay');
+const loadOverlayModel= $('#loadOverlayModel');
+const progressBarFill = $('#progressBarFill');
+const progressStage   = $('#progressStage');
+const progressPercent = $('#progressPercent');
+const progressLayers  = $('#progressLayers');
+const progressElapsed = $('#progressElapsed');
 const tempSlider    = $('#temperature');
 const tempVal       = $('#tempVal');
 const maxTokSlider  = $('#maxTokens');
@@ -405,6 +487,12 @@ async function handleLoad() {
   }
 }
 
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
 function startPolling() {
   if (pollTimer) clearInterval(pollTimer);
   pollTimer = setInterval(async () => {
@@ -420,12 +508,38 @@ function startPolling() {
       }
 
       if (data.loading) {
-        statusText.textContent = data.load_stage || 'Loading...';
+        const stage = data.load_stage || 'Loading...';
+        statusText.textContent = stage;
+
+        const pct = Math.round((data.load_progress || 0) * 100);
+        progressBarFill.style.width = pct + '%';
+        progressPercent.textContent = pct + '%';
+        progressStage.textContent = stage;
+
+        if (data.load_total_layers > 0) {
+          progressLayers.classList.remove('hidden');
+          progressLayers.textContent = `Layer ${data.load_current_layer} / ${data.load_total_layers}`;
+        }
+
+        if (data.load_elapsed > 0) {
+          let timeText = formatTime(data.load_elapsed);
+          if (data.load_progress > 0.05 && data.load_progress < 1) {
+            const eta = (data.load_elapsed / data.load_progress) * (1 - data.load_progress);
+            timeText += ` · ~${formatTime(eta)} remaining`;
+          }
+          progressElapsed.textContent = timeText;
+        }
         return;
       }
 
       if (data.loaded) {
         setModelLoaded(data);
+        clearInterval(pollTimer);
+        return;
+      }
+
+      if (!data.loading && !data.loaded) {
+        setUnloaded();
         clearInterval(pollTimer);
       }
     } catch (_) {}
@@ -434,11 +548,31 @@ function startPolling() {
 
 function setLoading() {
   loadError.classList.add('hidden');
-  btnLoad.disabled = true;
-  btnLoadText.textContent = 'Loading...';
+  btnLoad.disabled = false;
+  btnLoadText.textContent = 'Cancel';
   btnLoadSpinner.classList.remove('hidden');
+  btnLoad.onclick = cancelLoading;
   statusDot.className = 'status-dot bg-yellow-400 dot-pulse';
   statusText.textContent = 'Initializing...';
+
+  welcomeEl.classList.add('hidden');
+  loadingOverlay.classList.remove('hidden');
+  $('#btnCancel').disabled = false;
+  loadOverlayModel.textContent = $('#modelId').value.trim();
+  progressBarFill.style.width = '0%';
+  progressPercent.textContent = '0%';
+  progressStage.textContent = 'Initializing...';
+  progressLayers.classList.add('hidden');
+  progressElapsed.textContent = '';
+}
+
+async function cancelLoading() {
+  $('#btnCancel').disabled = true;
+  btnLoad.disabled = true;
+  progressStage.textContent = 'Cancelling...';
+  try {
+    await fetch('/api/models/cancel', { method: 'POST' });
+  } catch (_) {}
 }
 
 function setModelLoaded(data) {
@@ -446,6 +580,7 @@ function setModelLoaded(data) {
   btnLoad.disabled = false;
   btnLoadText.textContent = 'Unload Model';
   btnLoadSpinner.classList.add('hidden');
+  btnLoad.onclick = handleLoad;
   statusDot.className = 'status-dot bg-emerald-400';
   statusText.textContent = shortName(data.model_id);
   headerModel.textContent = shortName(data.model_id);
@@ -453,6 +588,7 @@ function setModelLoaded(data) {
     headerQuant.textContent = data.config.quantization;
     headerQuant.classList.remove('hidden');
   }
+  loadingOverlay.classList.add('hidden');
   chatInput.disabled = false;
   btnSend.disabled = false;
   chatInput.focus();
@@ -463,10 +599,13 @@ function setUnloaded() {
   btnLoad.disabled = false;
   btnLoadText.textContent = 'Load Model';
   btnLoadSpinner.classList.add('hidden');
+  btnLoad.onclick = handleLoad;
   statusDot.className = 'status-dot bg-g-dim';
   statusText.textContent = 'No model loaded';
   headerModel.textContent = 'No model loaded';
   headerQuant.classList.add('hidden');
+  loadingOverlay.classList.add('hidden');
+  welcomeEl.classList.remove('hidden');
   chatInput.disabled = true;
   btnSend.disabled = true;
 }
@@ -609,11 +748,18 @@ function escapeHtml(str) {
 }
 
 // ── Init ───────────────────────────────────────────────────────
+btnLoad.onclick = handleLoad;
+
 (async function init() {
   try {
     const res = await fetch('/api/models/status');
     const data = await res.json();
     if (data.loaded) setModelLoaded(data);
+    else if (data.loading) {
+      setLoading();
+      loadOverlayModel.textContent = data.model_id || '';
+      startPolling();
+    }
   } catch (_) {}
 })();
 </script>
