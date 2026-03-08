@@ -548,12 +548,7 @@ function startPolling() {
           progressLayers.textContent = `Layer ${data.load_current_layer} / ${data.load_total_layers}`;
         }
 
-        if (data.load_elapsed > 0 && data.load_progress > 0.05 && data.load_progress < 1) {
-          const eta = (data.load_elapsed / data.load_progress) * (1 - data.load_progress);
-          progressElapsed.textContent = `~${formatTime(eta)} remaining`;
-        } else {
-          progressElapsed.textContent = '';
-        }
+        progressElapsed.textContent = '';
         return;
       }
 
