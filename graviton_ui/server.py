@@ -192,8 +192,13 @@ async def chat(req: ChatRequest):
             yield f"data: {json.dumps({'done': True, 'total_tokens': token_count, 'elapsed': round(elapsed, 2), 'tps': round(tps, 1)})}\n\n"
         except GeneratorExit:
             pass
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            logger.debug("Client disconnected during streaming")
         except Exception as exc:
-            yield f"data: {json.dumps({'error': str(exc)})}\n\n"
+            try:
+                yield f"data: {json.dumps({'error': str(exc)})}\n\n"
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                pass
         finally:
             state.gen_lock.release()
 

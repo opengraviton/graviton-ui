@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import signal
+import sys
 import threading
 import webbrowser
 
@@ -30,6 +32,9 @@ def main():
 
     if not args.no_browser:
         threading.Timer(1.5, webbrowser.open, args=[url]).start()
+
+    if sys.platform != "win32":
+        signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
     print(f"\n  Graviton UI running at \033[1;35m{url}\033[0m\n")
 
