@@ -176,19 +176,26 @@ async def chat(req: ChatRequest):
     def generate():
         token_count = 0
         start = time.time()
+        acquired = state.gen_lock.acquire(timeout=30)
+        if not acquired:
+            yield f"data: {json.dumps({'error': 'Another generation is in progress'})}\n\n"
+            return
         try:
-            with state.gen_lock:
-                for chunk in engine.generate(prompt, stream=True):
-                    token_count += 1
-                    elapsed = time.time() - start
-                    tps = token_count / max(elapsed, 0.001)
-                    yield f"data: {json.dumps({'token': chunk, 'tps': round(tps, 1)})}\n\n"
+            for chunk in engine.generate(prompt, stream=True):
+                token_count += 1
+                elapsed = time.time() - start
+                tps = token_count / max(elapsed, 0.001)
+                yield f"data: {json.dumps({'token': chunk, 'tps': round(tps, 1)})}\n\n"
 
             elapsed = time.time() - start
             tps = token_count / max(elapsed, 0.001)
             yield f"data: {json.dumps({'done': True, 'total_tokens': token_count, 'elapsed': round(elapsed, 2), 'tps': round(tps, 1)})}\n\n"
+        except GeneratorExit:
+            pass
         except Exception as exc:
             yield f"data: {json.dumps({'error': str(exc)})}\n\n"
+        finally:
+            state.gen_lock.release()
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 
