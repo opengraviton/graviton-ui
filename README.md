@@ -2,41 +2,42 @@
 
 Beautiful chat interface for the [Graviton](https://github.com/opengraviton/graviton) AI inference engine.
 
-Enter a HuggingFace model ID, pick your quantization settings, and start chatting — all from a sleek dark-themed web UI running on your local machine.
+Enter a HuggingFace model ID, pick your quantization settings, and start chatting — all from a sleek dark-themed web UI running on your local machine. For large models (70B+), the UI shows real-time layer-by-layer loading progress as Graviton streams and quantizes each transformer layer.
 
 ## Features
 
 - **One-click model loading** — paste a HuggingFace model ID and token, hit Load
 - **Real-time streaming** — tokens stream in via SSE with a live tok/s counter
+- **Layer-by-layer loading progress** — watch "Loading layer 42/80..." as Graviton streams large models
 - **Full quantization control** — FP16, INT8, INT4, Ternary, Mixed-Precision
 - **Speculative decoding toggle** — enable layer-skip draft acceleration
 - **Conversation history** — multi-turn chat with system prompt support
 - **Dark theme** — easy on the eyes, purple Graviton accent
 
-## Quick Start
+## One-Command Install
+
+### For Humans
 
 ```bash
-# 1. Install Graviton (if not already)
-cd graviton && pip install -e ".[huggingface]"
-
-# 2. Install Graviton UI
-cd graviton-ui && pip install -e .
-
-# 3. Launch (auto-opens browser at http://localhost:7860)
-graviton-ui
+pip install graviton-ui && graviton-ui
 ```
 
-Or run directly with Python:
+One command. Installs the engine, quantization stack, HuggingFace integration, and the chat UI. Browser opens at `http://localhost:7860`.
+
+### For AI Agents
+
+Agents don't need a UI. The headless API server lives in the engine package:
 
 ```bash
-python -m graviton_ui
+pip install "graviton-ai[api]" && graviton-api
 ```
+
+See the [Graviton engine README](https://github.com/opengraviton/graviton#for-ai-agents) for full API documentation.
 
 ### Options
 
 ```
 graviton-ui --help
-
   --port PORT       Port to serve on (default: 7860)
   --host HOST       Host to bind to (default: 127.0.0.1)
   --no-browser      Don't auto-open the browser
@@ -48,7 +49,10 @@ graviton-ui --help
 Browser (index.html)          FastAPI (server.py)           Graviton Engine
        │                            │                            │
        │── POST /api/models/load ──▶│── GravitonEngine() ──────▶│
-       │◀── { status: loading } ────│   .load_model()            │
+       │◀── { status: loading } ────│   .progress_callback ──▶ state.load_stage
+       │                            │   .load_model()            │
+       │── GET /api/models/status ─▶│                            │
+       │◀── { load_stage: "..." } ──│   "Loading layer 42/80"   │
        │                            │                            │
        │── GET /api/models/status ─▶│                            │
        │◀── { loaded: true } ───────│                            │
@@ -58,11 +62,11 @@ Browser (index.html)          FastAPI (server.py)           Graviton Engine
        │◀── SSE: done, stats ───────│                            │
 ```
 
-1. **Load**: The UI posts your model ID + settings to `/api/models/load`. The backend creates a `GravitonEngine`, downloads weights from HuggingFace, and quantizes them. Status is polled via `/api/models/status`.
+1. **Load**: The UI posts your model ID + settings to `/api/models/load`. The backend creates a `GravitonEngine` with a progress callback wired to `state.load_stage`, downloads weights from HuggingFace, and — for large models — streams each transformer layer from safetensors shards, quantizes in-flight, and frees the FP16 originals. Status is polled via `/api/models/status`.
 
-2. **Chat**: Each message is posted to `/api/chat` with conversation history. The backend formats a prompt, calls `engine.generate(stream=True)`, and streams tokens back as Server-Sent Events.
+2. **Chat**: Each message is posted to `/api/chat` with conversation history. The backend formats a prompt using the ChatML template, calls `engine.generate(stream=True)`, and streams tokens back as Server-Sent Events.
 
-3. **Stream**: The frontend reads the SSE stream, renders markdown in real-time with [marked.js](https://marked.js.org/), and displays a live tokens/second counter.
+3. **Stream**: The frontend reads the SSE stream, renders markdown in real-time with [marked.js](https://marked.js.org/), and displays a live tokens/second counter. Broken pipe errors from client disconnects are handled gracefully.
 
 ## Tech Stack
 

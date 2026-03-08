@@ -10,6 +10,7 @@ import webbrowser
 
 
 def main():
+    """Launch Graviton UI — opens a browser with the chat interface."""
     parser = argparse.ArgumentParser(
         prog="graviton-ui",
         description="Launch the Graviton chat interface in your browser.",

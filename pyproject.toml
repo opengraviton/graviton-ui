@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "graviton-ui"
 version = "0.1.0"
-description = "Beautiful chat interface for the Graviton AI inference engine"
+description = "Dark-themed chat interface for Graviton — load 70B+ models with real-time progress, stream tokens via SSE"
 readme = "README.md"
 license = {text = "Apache-2.0"}
 requires-python = ">=3.9"
@@ -14,7 +14,8 @@ authors = [
 ]
 keywords = [
     "ai", "inference", "ui", "chat", "graviton",
-    "llm", "quantization", "web-ui",
+    "llm", "quantization", "web-ui", "streaming",
+    "layer-by-layer-loading", "local-llm", "70b-model",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -27,7 +28,7 @@ classifiers = [
 dependencies = [
     "fastapi>=0.100.0",
     "uvicorn[standard]>=0.22.0",
-    "graviton-ai>=0.1.0",
+    "graviton-ai[huggingface]>=0.1.0",
 ]
 
 [project.optional-dependencies]
