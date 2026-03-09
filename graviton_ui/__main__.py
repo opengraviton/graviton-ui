@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-# MPS bellek limitini kaldır (Apple Silicon'da büyük modeller için)
-# UYARI: Sistem donması riski var; diğer ağır uygulamaları kapatın
+# Remove MPS memory limit (for large models on Apple Silicon)
+# WARNING: System freeze risk; close other heavy applications
 import os
 if "PYTORCH_MPS_HIGH_WATERMARK_RATIO" not in os.environ:
     os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
