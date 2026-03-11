@@ -158,9 +158,10 @@ tailwind.config = {
     <section>
       <h2 class="text-[11px] font-semibold uppercase tracking-wider text-g-dim mb-2">Model</h2>
       <label class="block mb-3">
-        <span class="text-xs text-g-muted mb-1 block">Model ID</span>
-        <input id="modelId" type="text" placeholder="Qwen/Qwen2.5-72B-Instruct" list="modelSuggestions"
+        <span class="text-xs text-g-muted mb-1 block">Model ID or local path</span>
+        <input id="modelId" type="text" placeholder="Qwen/Qwen2.5-72B-Instruct or ./checkpoints/bitnet-1b" list="modelSuggestions"
           class="w-full bg-g-input border border-g-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-g-accent/60 transition placeholder:text-g-dim">
+        <p class="text-[10px] text-g-dim mt-1">HuggingFace ID (downloads) or local path. Use absolute path if graviton-ui runs from another dir.</p>
         <datalist id="modelSuggestions">
           <option value="Qwen/Qwen2.5-72B-Instruct">
           <option value="meta-llama/Llama-3.1-70B-Instruct">
@@ -172,6 +173,9 @@ tailwind.config = {
           <option value="Qwen/Qwen2.5-7B-Instruct">
           <option value="Qwen/Qwen2.5-3B-Instruct">
           <option value="TinyLlama/TinyLlama-1.1B-Chat-v1.0">
+          <option value="./checkpoints/bitnet-1b">
+          <option value="./checkpoints/bitnet-350m">
+          <option value="./checkpoints/moe-small">
         </datalist>
       </label>
     </section>
@@ -330,6 +334,11 @@ tailwind.config = {
           class="bg-g-card hover:bg-g-input border border-g-border rounded-xl px-4 py-3 text-left transition group">
           <p class="text-sm font-medium group-hover:text-g-accent transition">TinyLlama 1.1B</p>
           <p class="text-xs text-g-dim mt-0.5">Ultra fast — 8 GB</p>
+        </button>
+        <button onclick="setQuickModel('./checkpoints/bitnet-1b')"
+          class="bg-g-card hover:bg-g-input border border-g-border rounded-xl px-4 py-3 text-left transition group border-g-accent/40">
+          <p class="text-sm font-medium group-hover:text-g-accent transition">Local BitNet 1B</p>
+          <p class="text-xs text-g-dim mt-0.5">Graviton-Native — run from graviton-native dir</p>
         </button>
       </div>
     </div>
